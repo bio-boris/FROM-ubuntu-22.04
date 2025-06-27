@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 
-jjobs:
+jobs:
   build-and-scan-image:
     runs-on: ubuntu-latest
     permissions:
