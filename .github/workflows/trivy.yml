@@ -17,34 +17,69 @@ on:
 permissions:
   contents: read
 
-jobs:
-  build:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    name: Build
+jjobs:
+  build-and-scan-image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
-      - name: Checkout code
+      - name: Check out GitHub Repo
         uses: actions/checkout@v4
 
       - name: Build an image from Dockerfile
         run: |
-          docker build -t docker.io/my-organization/my-app:${{ github.sha }} .
+          docker build -t kbase/trivy:scan . 
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+        uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
-          format: 'template'
-          template: '@/contrib/sarif.tpl'
-          output: 'trivy-results.sarif'
-          severity: 'LOW,MEDIUM,HIGH,CRITICAL' # <--- Add this line!
-          exit-code: '1'
+          image-ref: "kbase/trivy:scan"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          timeout: "20m"
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+          limit-severities-for-sarif: true
+          exit-code: '1' # Fail Step if CVE of specified severity is detected 
 
 
-      - name: Upload Trivy scan results to GitHub Security tab
+      - name: Upload Trivy scan results to GitHub Security tab for PR 
+        # Always run this step to upload results, even if the scan step failed
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
+          category: 'trivy-docker-scan'
+
+        
+      - name: Upload Trivy scan results to GitHub Security tab for BASE_REF
+        # Always run this step to upload results, even if the scan step failed
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results.sarif"
+          category: 'trivy-docker-scan'
+          ref: 'refs/heads/${{ github.base_ref }}'
+          sha: '${{ github.event.pull_request.head.sha }}'
+
+
+      - name: Fail on Specific Critical CVEs
+        run: |
+          set -e # Fail the script if any command exits non-zero
+          REQUIRED_CVES="CVE-2021-4104 CVE-2021-44228 CVE-2021-45046 CVE-2022-22965"
+          FOUND_CRITICAL=false
+
+          for CVE_ID in $REQUIRED_CVES; do
+            if grep -q "\"id\": \"${CVE_ID}\"" trivy-results.sarif; then
+              echo "::error file=trivy-results.sarif::CRITICAL CVE detected: ${CVE_ID}"
+              FOUND_CRITICAL=true
+            fi
+          done
+
+          if [ "$FOUND_CRITICAL" = true ]; then
+            echo "Workflow failed due to specific critical CVEs."
+            exit 1
+          fi
+        if: always() # Ensures this check runs even if previous steps had warnings/non-fatal issues
