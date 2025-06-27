@@ -1,1 +1,1 @@
-GG
+# This is a trivy tester
