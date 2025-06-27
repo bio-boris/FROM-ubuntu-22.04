@@ -50,18 +50,18 @@ jobs:
           category: 'trivy-docker-scan-pr'
 
         
-      - name: Upload Trivy scan results to GitHub Security tab for BASE_REF
-        # This step will now only run if 'always()' is true, AND
-        # if 'github.base_ref' has a value, AND
-        # if 'github.event.pull_request.head.sha' has a value.
-        # This will prevent the warning when those values are not present.
-        if: always() && github.base_ref && github.event.pull_request.head.sha
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: "trivy-results.sarif"
-          category: 'trivy-docker-scan-base-ref'
-          ref: 'refs/heads/${{ github.base_ref }}'
-          sha: '${{ github.event.pull_request.head.sha }}'
+      # - name: Upload Trivy scan results to GitHub Security tab for BASE_REF
+      #   # This step will now only run if 'always()' is true, AND
+      #   # if 'github.base_ref' has a value, AND
+      #   # if 'github.event.pull_request.head.sha' has a value.
+      #   # This will prevent the warning when those values are not present.
+      #   if: always() && github.base_ref && github.event.pull_request.head.sha
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: "trivy-results.sarif"
+      #     category: 'trivy-docker-scan-base-ref'
+      #     ref: 'refs/heads/${{ github.base_ref }}'
+      #     sha: '${{ github.event.pull_request.head.sha }}'
 
 
       - name: Fail on Specific Critical CVEs
