@@ -40,7 +40,7 @@ jobs:
           format: 'template'
           template: '@/contrib/sarif.tpl'
           output: 'trivy-results.sarif'
-          severity: 'HIGH,CRITICAL' # <--- Add this line!
+          severity: 'LOW,MEDIUM,HIGH,CRITICAL' # <--- Add this line!
           exit-code: '1'
 
 
